@@ -3,12 +3,25 @@ import { useMemo } from 'react';
 import { useInfiniteQuery } from 'react-query';
 
 import { Header } from '../components/Header';
-import { CardList } from '../components/CardList';
+import { Card, CardList } from '../components/CardList';
 import { api } from '../services/api';
 import { Loading } from '../components/Loading';
 import { Error } from '../components/Error';
 
+type getImagesResponseProps = {
+  data: Card[];
+  after: null;
+};
+
 export default function Home(): JSX.Element {
+  const getImages = async ({ pageParam = 0 }) => {
+    const reponse = await api.get<getImagesResponseProps>('/api/images', {
+      params: { after: pageParam },
+    });
+
+    return reponse.data;
+  };
+
   const {
     data,
     isLoading,
@@ -18,18 +31,27 @@ export default function Home(): JSX.Element {
     hasNextPage,
   } = useInfiniteQuery(
     'images',
-    // TODO AXIOS REQUEST WITH PARAM
-    ,
-    // TODO GET AND RETURN NEXT PAGE PARAM
+
+    getImages,
+    {
+      getNextPageParam: lastPage => lastPage.after,
+    }
   );
 
   const formattedData = useMemo(() => {
-    // TODO FORMAT AND FLAT DATA ARRAY
+    const normalized: Card[] = [];
+
+    data?.pages?.forEach(page => {
+      page?.data?.forEach(pageData => {
+        normalized.push(pageData);
+      });
+    });
+
+    return normalized;
   }, [data]);
 
-  // TODO RENDER LOADING SCREEN
-
-  // TODO RENDER ERROR SCREEN
+  if (isLoading) return <Loading />;
+  if (isError) return <Error />;
 
   return (
     <>
@@ -37,7 +59,11 @@ export default function Home(): JSX.Element {
 
       <Box maxW={1120} px={20} mx="auto" my={20}>
         <CardList cards={formattedData} />
-        {/* TODO RENDER LOAD MORE BUTTON IF DATA HAS NEXT PAGE */}
+        {hasNextPage && (
+          <Button marginTop={14} onClick={() => fetchNextPage()}>
+            {isFetchingNextPage ? 'Carregando...' : 'Carregar mais'}
+          </Button>
+        )}
       </Box>
     </>
   );
